@@ -1,0 +1,6 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+pywebview==6.2.1
+pyinstaller==6.22.3
+pillow==13.0.0
+resvg-py==0.5.0

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MAYDAY - explore a growing, source-linked archive of aviation accidents, attacks and combat losses from 1939 to 2026.">
+  <title>MAYDAY - Aviation history globe</title>
+  <link rel="icon" href="/static/assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Widgets/widgets.css">
+  <link rel="preload" href="/static/assets/fonts/Archivo-Variable.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="/static/assets/plane-marker.svg" as="image" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/";</script>
+  <script defer src="/static/app.js"></script>
+  <script id="cesiumScript" defer src="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Cesium.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="MAYDAY home">
+      <img class="brand-logo" src="/static/assets/logo.svg" alt="" width="48" height="48">
+      <span class="brand-wordmark">MAY<span class="brand-day">DAY</span></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <span class="nav-active">Explore</span>
+      <button class="text-button" id="aboutButton">About the archive</button>
+    </nav>
+    <span class="era">1939 <span>-</span> 2026</span>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar" aria-label="Explore aviation events">
+      <div class="intro">
+        <h1>Every record.<br> A place in history.</h1>
+        <p class="intro-copy">Explore documented aviation accidents, attacks and combat losses, from World War II to today.</p>
+      </div>
+      <div class="archive-metrics" aria-label="Archive size">
+        <div><strong id="archiveTotal">...</strong><span>IN THE ARCHIVE</span></div>
+        <div><strong id="archiveMapped">...</strong><span>WITH COORDINATES</span></div>
+      </div>
+      <div id="coverageSummary" class="coverage-summary" aria-live="polite">A growing, source-linked archive. Coverage is incomplete; each record reflects the information available in its source.</div>
+      <form id="filters" class="filters">
+        <label class="sr-only" for="search">Search events</label>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+          <input id="search" type="search" placeholder="Name, country, aircraft…" autocomplete="off">
+        </div>
+        <label class="field-label" for="category">EVENT TYPE</label>
+        <select id="category">
+          <option value="all">All event types</option>
+          <option value="accident">Accidents</option>
+          <option value="combat_loss">Combat / shootdowns</option>
+          <option value="incident">Incidents</option>
+          <option value="terrorist_attack">Terrorist attack</option>
+          <option value="other">Other / unclassified</option>
+        </select>
+        <label class="field-label outcome-label" for="outcome">Outcome</label>
+        <select id="outcome">
+          <option value="all">All outcomes</option>
+          <option value="fatal">Fatal accidents &amp; events</option>
+          <option value="nonfatal">Nonfatal accidents &amp; events</option>
+          <option value="unknown">Outcome unknown</option>
+        </select>
+        <label class="field-label time-label" for="timeSpan">Time span</label>
+        <select id="timeSpan">
+          <option value="all">All years (1939-2026)</option>
+          <option value="1939-1949">1939-1949</option>
+          <option value="1950-1959">1950-1959</option>
+          <option value="1960-1969">1960-1969</option>
+          <option value="1970-1979">1970-1979</option>
+          <option value="1980-1989">1980-1989</option>
+          <option value="1990-1999">1990-1999</option>
+          <option value="2000-2009">2000-2009</option>
+          <option value="2010-2019">2010-2019</option>
+          <option value="2020-2026">2020-2026</option>
+        </select>
+        <p id="filterError" class="form-error" role="alert" hidden></p>
+      </form>
+      <div class="results-heading"><span id="resultCount" aria-live="polite">Loading records…</span><button id="resetFilters" class="text-button">Reset filters</button></div>
+      <div id="eventList" class="event-list" aria-label="Matching events"></div>
+      <button id="moreResults" class="secondary-button" hidden>Show more results</button>
+      <div class="sidebar-footer">
+        <span class="status-dot" id="statusDot"></span>
+        <p id="dataStatus" role="status">Connecting to your archive…</p>
+        <button class="icon-button" id="refreshData" title="Refresh archive" aria-label="Refresh archive">↻</button>
+      </div>
+    </aside>
+
+    <section class="map-panel" aria-label="Interactive globe">
+      <div id="globe"></div>
+      <div class="map-heading"><p class="eyebrow">THE GLOBAL RECORD</p><p id="mapCount">Preparing the globe</p></div>
+      <div class="map-tools" aria-label="Globe controls">
+        <button id="homeView" class="icon-button" title="Reset globe view" aria-label="Reset globe view">◎</button>
+        <button id="zoomIn" class="icon-button" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoomOut" class="icon-button" title="Zoom out" aria-label="Zoom out">−</button>
+      </div>
+      <div id="mapMessage" class="map-message" role="status">Preparing your view of the world…</div>
+      <div id="mapNotice" class="map-notice" role="status" hidden></div>
+      <div class="map-legend"><span><img class="legend-plane" src="/static/assets/plane-marker.svg" alt="" aria-hidden="true">Aviation event</span><span>One plane per mapped record</span></div>
+      <div class="map-hint">DRAG TO ROTATE <span>·</span> SCROLL TO ZOOM</div>
+      <article id="detailPanel" class="detail-panel" aria-label="Selected event" hidden>
+        <button id="closeDetails" class="icon-button detail-close" aria-label="Close event details">×</button>
+        <p class="eyebrow" id="detailCategory"></p>
+        <h2 id="detailName"></h2>
+        <p class="detail-date" id="detailDate"></p>
+        <section class="route-card" aria-labelledby="routeHeading">
+          <div class="route-heading"><h3 id="routeHeading">Flight route</h3><span id="routeBadge" class="route-badge" hidden>Approximate</span></div>
+          <label id="routeChoiceLabel" class="sr-only" for="routeChoice" hidden>Choose a source route</label>
+          <select id="routeChoice" aria-label="Choose a source route" hidden></select>
+          <p id="routeDescription" class="route-description" aria-live="polite"></p>
+          <p id="routeNote" class="detail-note"></p>
+          <div class="route-actions">
+            <button id="fitRoute" class="text-button" type="button" hidden>Fit route to view</button>
+          </div>
+          <details id="routeEvidence" class="route-evidence" hidden>
+            <summary>Sources and limitations</summary>
+            <p id="routeEvidenceNote" class="detail-note"></p>
+            <a id="routeSource" class="summary-source" target="_blank" rel="noopener noreferrer" hidden>Route source ↗</a>
+            <a id="routeOriginSource" class="summary-source" target="_blank" rel="noopener noreferrer" hidden>Origin coordinates ↗</a>
+          </details>
+        </section>
+        <dl>
+          <div><dt>Country</dt><dd id="detailCountry"></dd></div>
+          <div><dt>Aircraft</dt><dd id="detailAircraft"></dd></div>
+          <div><dt>Death toll</dt><dd id="detailFatalities"></dd></div>
+          <div><dt>Icon direction</dt><dd id="detailHeading"></dd></div>
+          <div><dt>Coordinates</dt><dd id="detailCoordinates"></dd></div>
+        </dl>
+        <p id="detailHeadingNote" class="detail-note"></p>
+        <a id="detailHeadingSource" class="summary-source" target="_blank" rel="noopener noreferrer" hidden>Heading evidence ↗</a>
+        <section class="event-summary" aria-labelledby="detailSummaryHeading">
+          <h3 id="detailSummaryHeading">What happened</h3>
+          <p id="detailSummary" class="summary-copy"></p>
+          <p id="detailSummaryNote" class="detail-note"></p>
+          <a id="detailSummarySource" class="summary-source" target="_blank" rel="noopener noreferrer" hidden>Read the summary source <span aria-hidden="true">↗</span></a>
+        </section>
+        <p class="detail-note" id="detailFatalityNote"></p>
+        <a id="detailFatalitySource" class="summary-source" target="_blank" rel="noopener noreferrer" hidden>Death count source <span aria-hidden="true">↗</span></a>
+        <p class="detail-note" id="detailNote"></p>
+        <a id="detailSource" class="source-link" target="_blank" rel="noopener noreferrer" hidden>Read the source <span aria-hidden="true">↗</span></a>
+      </article>
+    </section>
+  </main>
+  <dialog id="aboutDialog">
+    <button class="icon-button dialog-close" id="closeAbout" aria-label="Close about the archive">×</button>
+    <p class="eyebrow">ABOUT MAYDAY · VERSION 1.0.0</p>
+    <h2>A growing record<br>of aviation history.</h2>
+    <p>MAYDAY brings documented aviation accidents, terrorist attacks and combat losses onto an interactive globe. Its current scope is worldwide, from 1939 to 2026, across civil and military aviation.</p>
+    <p>Developed by Mihail Kostov. The archive is a work in progress; it does not yet represent complete historical coverage.</p>
+    <p>Markers use recorded coordinates, whose accuracy varies by source. Some locations identify a nearby place rather than an exact crash site. Events without usable coordinates remain searchable in the list. Source links let you investigate the original records.</p>
+    <p>Route lines connect a sourced departure or journey origin to the recorded event location. They are approximate geographic connections, not recorded flight tracks or flight altitudes. The line stops at the event location; an intended destination does not mean the aircraft reached it. Routes remain unavailable when the origin cannot be established.</p>
+    <p>Plane icons follow the approximate route arrival direction where one usable route exists. A reviewed heading takes priority. Route-derived direction is not an observed heading before impact; records without sufficient evidence retain a neutral orientation.</p>
+    <p class="detail-note">Globe: CesiumJS. Satellite imagery: Esri World Imagery and its credited contributors. Detail loads as you zoom; resolution varies by location. Red planes mark source-reported event locations.</p>
+  </dialog>
+</body>
+</html>
